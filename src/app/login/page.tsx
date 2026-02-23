@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const [chatId, setChatId] = useState("");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -16,7 +17,7 @@ export default function LoginPage() {
     setLoading(true); setError(""); setSuccess("");
     const res = await fetch("/api/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId }),
+      body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
     setLoading(false);
@@ -28,12 +29,16 @@ export default function LoginPage() {
     setLoading(true); setError(""); setSuccess("");
     const res = await fetch("/api/auth/register", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId, username }),
+      body: JSON.stringify({ email, password, displayName }),
     });
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { setError(data.error); return; }
     setSuccess("Registration submitted! Waiting for admin approval.");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") mode === "login" ? handleLogin() : handleRegister();
   };
 
   return (
@@ -61,31 +66,34 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Telegram Chat ID</label>
-              <input type="text" value={chatId} onChange={e => setChatId(e.target.value)}
-                placeholder="e.g. 2102262384"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
-            </div>
+          <div className="space-y-4" onKeyDown={handleKeyDown}>
             {mode === "register" && (
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Telegram Username</label>
-                <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  placeholder="@username"
+                <label className="block text-sm text-gray-400 mb-1">Display Name</label>
+                <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+                  placeholder="Your name"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
               </div>
             )}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder={mode === "register" ? "Min 6 characters" : "Enter password"}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+            </div>
             {error && <p className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">{error}</p>}
             {success && <p className="text-green-400 text-sm bg-green-900/20 border border-green-800 rounded-lg px-3 py-2">{success}</p>}
-            <button onClick={mode === "login" ? handleLogin : handleRegister} disabled={loading || !chatId}
+            <button onClick={mode === "login" ? handleLogin : handleRegister} disabled={loading || !email || !password}
               className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-medium transition">
-              {loading ? "..." : mode === "login" ? "Login" : "Register"}
+              {loading ? "..." : mode === "login" ? "Login" : "Create Account"}
             </button>
           </div>
-          <p className="text-gray-500 text-xs mt-4 text-center">
-            Message <a href="https://t.me/Atlasdevhouse_bot" className="text-cyan-400">@Atlasdevhouse_bot</a> on Telegram to get your Chat ID
-          </p>
         </div>
       </div>
     </div>

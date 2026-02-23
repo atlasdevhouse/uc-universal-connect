@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import AppShell from "@/components/AppShell";
 
 interface User {
-  id: number; telegram_chat_id: string; telegram_username: string;
+  id: number; email: string; telegram_chat_id: string; telegram_username: string;
   display_name: string; role: string; subscription: string;
   status: string; install_token: string; created_at: string; last_login: string;
 }
@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, activeUsers: 0, pendingUsers: 0, totalDevices: 0, onlineDevices: 0 });
   const [showAdd, setShowAdd] = useState(false);
-  const [newUser, setNewUser] = useState({ chatId: "", username: "", displayName: "", subscription: "free", role: "user" });
+  const [newUser, setNewUser] = useState({ email: "", password: "", displayName: "", telegramChatId: "", subscription: "free", role: "user" });
 
   const fetchData = async () => {
     const res = await fetch("/api/admin/users");
@@ -31,14 +31,14 @@ export default function AdminPage() {
     fetchData();
   };
   const addUser = async () => {
-    if (!newUser.chatId) return;
+    if (!newUser.email || !newUser.password) return;
     const res = await fetch("/api/admin/users", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newUser),
     });
     if (res.ok) {
       setShowAdd(false);
-      setNewUser({ chatId: "", username: "", displayName: "", subscription: "free", role: "user" });
+      setNewUser({ email: "", password: "", displayName: "", telegramChatId: "", subscription: "free", role: "user" });
       fetchData();
     }
   };
@@ -74,21 +74,27 @@ export default function AdminPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Telegram Chat ID *</label>
-                <input type="text" value={newUser.chatId} onChange={e => setNewUser(u => ({ ...u, chatId: e.target.value }))}
-                  placeholder="e.g. 2102262384"
+                <label className="block text-sm text-gray-400 mb-1">Email *</label>
+                <input type="email" value={newUser.email} onChange={e => setNewUser(u => ({ ...u, email: e.target.value }))}
+                  placeholder="user@example.com"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Telegram Username</label>
-                <input type="text" value={newUser.username} onChange={e => setNewUser(u => ({ ...u, username: e.target.value }))}
-                  placeholder="@username"
+                <label className="block text-sm text-gray-400 mb-1">Password *</label>
+                <input type="text" value={newUser.password} onChange={e => setNewUser(u => ({ ...u, password: e.target.value }))}
+                  placeholder="Min 6 characters"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Display Name</label>
                 <input type="text" value={newUser.displayName} onChange={e => setNewUser(u => ({ ...u, displayName: e.target.value }))}
                   placeholder="John Doe"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Telegram Chat ID <span className="text-gray-600">(optional, for alerts)</span></label>
+                <input type="text" value={newUser.telegramChatId} onChange={e => setNewUser(u => ({ ...u, telegramChatId: e.target.value }))}
+                  placeholder="e.g. 2102262384"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -107,7 +113,7 @@ export default function AdminPage() {
                   </select>
                 </div>
               </div>
-              <button onClick={addUser} disabled={!newUser.chatId}
+              <button onClick={addUser} disabled={!newUser.email || !newUser.password}
                 className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 py-3 rounded-lg font-medium transition mt-2">
                 Create User
               </button>
@@ -129,7 +135,7 @@ export default function AdminPage() {
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead><tr className="bg-gray-800/50 text-gray-400 text-left">
-              <th className="px-4 py-3">ID</th><th className="px-4 py-3">Username</th><th className="px-4 py-3">Chat ID</th>
+              <th className="px-4 py-3">ID</th><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Subscription</th><th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Created</th><th className="px-4 py-3">Last Login</th><th className="px-4 py-3">Actions</th>
             </tr></thead>
@@ -137,8 +143,8 @@ export default function AdminPage() {
               {users.map(u => (
                 <tr key={u.id} className="border-t border-gray-800 hover:bg-gray-800/30">
                   <td className="px-4 py-3">{u.id}</td>
-                  <td className="px-4 py-3 font-medium">{u.display_name || u.telegram_username || "N/A"}</td>
-                  <td className="px-4 py-3 text-gray-400 font-mono text-xs">{u.telegram_chat_id}</td>
+                  <td className="px-4 py-3 font-medium">{u.display_name || u.email || "N/A"}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">{u.email || u.telegram_chat_id || "N/A"}</td>
                   <td className="px-4 py-3">
                     <select value={u.subscription} onChange={e => updateUser(u.id, { subscription: e.target.value })}
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs">
