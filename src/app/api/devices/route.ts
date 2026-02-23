@@ -1,54 +1,63 @@
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
-// Connected devices registry (in-memory, replace with DB)
-interface Device {
-  id: string;
-  name: string;
-  os: string;
-  ip: string;
-  resolution: string;
-  status: "online" | "away" | "offline";
-  lastSeen: string;
-  userId: string;
-}
-
-const devices: Map<string, Device> = new Map();
-
-// GET — list devices for user
 export async function GET() {
-  return NextResponse.json(Array.from(devices.values()));
+  const { data, error } = await supabase
+    .from("devices")
+    .select("*")
+    .order("last_seen", { ascending: false });
+
+  if (error) return NextResponse.json([], { status: 200 });
+  
+  // Map DB fields to frontend format
+  const devices = (data || []).map(d => ({
+    id: d.id,
+    name: d.name,
+    os: d.os,
+    ip: d.ip,
+    resolution: d.resolution,
+    status: d.status,
+    lastSeen: d.last_seen,
+  }));
+  
+  return NextResponse.json(devices);
 }
 
-// POST — register/heartbeat from Windows agent
 export async function POST(req: Request) {
   const body = await req.json();
-  const { deviceId, name, os, ip, resolution, userId } = body;
+  const { deviceId, name, os, ip, publicIp, resolution, userId, user, version } = body;
   
-  if (!deviceId) {
-    return NextResponse.json({ error: "deviceId required" }, { status: 400 });
+  if (!deviceId && !name) {
+    return NextResponse.json({ error: "deviceId or name required" }, { status: 400 });
   }
+
+  const id = deviceId || name;
   
-  devices.set(deviceId, {
-    id: deviceId,
-    name: name || deviceId,
-    os: os || "Unknown",
-    ip: ip || "Unknown",
-    resolution: resolution || "Unknown",
-    status: "online",
-    lastSeen: new Date().toISOString(),
-    userId: userId || "default",
-  });
+  const { error } = await supabase
+    .from("devices")
+    .upsert({
+      id,
+      name: name || id,
+      os: os || "Unknown",
+      ip: ip || "Unknown",
+      public_ip: publicIp || null,
+      resolution: resolution || "Unknown",
+      status: "online",
+      user_id: userId || "jay",
+      username: user || null,
+      version: version || "1.0",
+      last_seen: new Date().toISOString(),
+    }, { onConflict: "id" });
   
-  return NextResponse.json({ ok: true, deviceId });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, deviceId: id });
 }
 
-// DELETE — device disconnect
 export async function DELETE(req: Request) {
   const { deviceId } = await req.json();
-  const device = devices.get(deviceId);
-  if (device) {
-    device.status = "offline";
-    device.lastSeen = new Date().toISOString();
-  }
+  await supabase
+    .from("devices")
+    .update({ status: "offline", last_seen: new Date().toISOString() })
+    .eq("id", deviceId);
   return NextResponse.json({ ok: true });
 }
