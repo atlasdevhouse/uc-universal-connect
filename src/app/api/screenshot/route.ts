@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 
-// Proxy screenshot requests to the Windows agent
-// In production, this would go through a reverse tunnel
+// Screenshot relay - agent POSTs screenshots here, dashboard GETs them
+// Stored in memory per device (replaced each frame)
+const screenshots: Map<string, { image: string; timestamp: number }> = new Map();
+
+// Agent uploads a screenshot
+export async function POST(req: Request) {
+  const { deviceId, image } = await req.json();
+  if (!deviceId || !image) {
+    return NextResponse.json({ error: "deviceId and image required" }, { status: 400 });
+  }
+  screenshots.set(deviceId, { image, timestamp: Date.now() });
+  return NextResponse.json({ ok: true });
+}
+
+// Dashboard fetches latest screenshot
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const agentUrl = url.searchParams.get("agent");
-  
-  if (!agentUrl) {
-    return NextResponse.json({ error: "agent URL required" }, { status: 400 });
+  const deviceId = url.searchParams.get("deviceId");
+  if (!deviceId) {
+    return NextResponse.json({ error: "deviceId required" }, { status: 400 });
   }
-  
-  try {
-    const res = await fetch(`${agentUrl}/screenshot`, { 
-      signal: AbortSignal.timeout(5000) 
-    });
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json({ error: "Agent unreachable" }, { status: 502 });
+  const frame = screenshots.get(deviceId);
+  if (!frame) {
+    return NextResponse.json({ error: "no screenshot available" }, { status: 404 });
   }
+  return NextResponse.json(frame);
 }
