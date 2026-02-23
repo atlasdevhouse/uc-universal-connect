@@ -8,6 +8,8 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Management;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Web.Script.Serialization;
 
 class UCAgent {
     static string SERVER = "https://uc-universal-connect-omega.vercel.app";
@@ -16,9 +18,14 @@ class UCAgent {
     static string LOCAL_IP = "unknown";
     static string PUBLIC_IP = "unknown";
     
+    [DllImport("user32.dll")] static extern bool SetCursorPos(int X, int Y);
+    [DllImport("user32.dll")] static extern void mouse_event(uint dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+    const uint MOUSEEVENTF_LEFTDOWN = 0x02, MOUSEEVENTF_LEFTUP = 0x04;
+    const uint MOUSEEVENTF_RIGHTDOWN = 0x08, MOUSEEVENTF_RIGHTUP = 0x10;
+    
     static void Main() {
         ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-        Console.WriteLine("UC Agent v2.3 starting...");
+        Console.WriteLine("UC Agent v2.4 starting...");
         try {
             var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct");
             string uuid = "unknown";
@@ -43,11 +50,16 @@ class UCAgent {
                 PUBLIC_IP = sr.ReadToEnd().Trim();
         } catch { }
         
+        Console.WriteLine("Device: " + DEVICE_ID);
+        Console.WriteLine("OS: " + OS_NAME);
+        Console.WriteLine("IP: " + LOCAL_IP + " / " + PUBLIC_IP);
+        
         int n = 0;
         while (true) {
             try {
                 if (n % 10 == 0) SendHeartbeat();
                 SendScreenshot();
+                PollCommands();
             } catch (Exception ex) { Console.WriteLine("ERR: " + ex.Message); }
             n++;
             Thread.Sleep(3000);
@@ -58,7 +70,7 @@ class UCAgent {
         string json = "{\"deviceId\":\"" + DEVICE_ID + "\",\"name\":\"" + Environment.MachineName + 
             "\",\"os\":\"" + OS_NAME + "\",\"ip\":\"" + LOCAL_IP + "\",\"publicIp\":\"" + PUBLIC_IP + 
             "\",\"resolution\":\"" + Screen.PrimaryScreen.Bounds.Width + "x" + Screen.PrimaryScreen.Bounds.Height + 
-            "\",\"userId\":\"jay\",\"version\":\"2.3\"}";
+            "\",\"userId\":\"jay\",\"version\":\"2.4\"}";
         Post(SERVER + "/api/devices", json);
         Console.WriteLine("Heartbeat OK");
     }
@@ -78,6 +90,64 @@ class UCAgent {
                 Post(SERVER + "/api/screenshot", json);
                 Console.WriteLine("Frame sent (" + (ms.Length/1024) + "KB)");
             }
+        }
+    }
+    
+    static void PollCommands() {
+        try {
+            var req = (HttpWebRequest)WebRequest.Create(SERVER + "/api/commands?deviceId=" + Uri.EscapeDataString(DEVICE_ID));
+            req.Timeout = 5000;
+            using (var res = req.GetResponse())
+            using (var sr = new StreamReader(res.GetResponseStream())) {
+                string body = sr.ReadToEnd();
+                if (string.IsNullOrEmpty(body) || body == "[]") return;
+                var ser = new JavaScriptSerializer();
+                var cmds = ser.Deserialize<object[]>(body);
+                foreach (var obj in cmds) {
+                    var cmd = (System.Collections.Generic.Dictionary<string, object>)obj;
+                    string action = cmd["action"].ToString();
+                    var data = cmd.ContainsKey("data") ? (System.Collections.Generic.Dictionary<string, object>)cmd["data"] : null;
+                    ExecuteCommand(action, data);
+                }
+            }
+        } catch { }
+    }
+    
+    static void ExecuteCommand(string action, System.Collections.Generic.Dictionary<string, object> data) {
+        Console.WriteLine("CMD: " + action);
+        int x, y;
+        switch (action) {
+            case "click":
+                x = Convert.ToInt32(data["x"]); y = Convert.ToInt32(data["y"]);
+                SetCursorPos(x, y); Thread.Sleep(50);
+                mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+                mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                break;
+            case "rightclick":
+                x = Convert.ToInt32(data["x"]); y = Convert.ToInt32(data["y"]);
+                SetCursorPos(x, y); Thread.Sleep(50);
+                mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
+                mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+                break;
+            case "doubleclick":
+                x = Convert.ToInt32(data["x"]); y = Convert.ToInt32(data["y"]);
+                SetCursorPos(x, y); Thread.Sleep(50);
+                mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+                mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                Thread.Sleep(100);
+                mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+                mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                break;
+            case "move":
+                x = Convert.ToInt32(data["x"]); y = Convert.ToInt32(data["y"]);
+                SetCursorPos(x, y);
+                break;
+            case "type":
+                SendKeys.SendWait(data["text"].ToString());
+                break;
+            case "key":
+                SendKeys.SendWait(data["key"].ToString());
+                break;
         }
     }
     
