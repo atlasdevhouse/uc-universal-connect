@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import AppShell from "@/components/AppShell";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PC {
   id: string; name: string; os: string; ip: string;
@@ -8,6 +9,7 @@ interface PC {
 }
 
 export default function DashboardPage() {
+  const { role } = useAuth();
   const [pcs, setPcs] = useState<PC[]>([]);
   const [selectedPc, setSelectedPc] = useState<PC | null>(null);
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -105,7 +107,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <AppShell role="admin">
+    <AppShell role={role}>
       <header className="px-6 py-4 border-b border-gray-800">
         <h1 className="text-xl font-bold">🖥️ Devices</h1>
         <p className="text-gray-500 text-sm">{pcs.filter(p => p.status === "online").length} online &bull; {pcs.length} total</p>
