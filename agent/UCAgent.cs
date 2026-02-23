@@ -7,20 +7,41 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using System.Management;
+using System.Net.Sockets;
 
 class UCAgent {
     static string SERVER = "https://uc-universal-connect-omega.vercel.app";
     static string DEVICE_ID;
+    static string OS_NAME = "Windows";
+    static string LOCAL_IP = "unknown";
+    static string PUBLIC_IP = "unknown";
     
     static void Main() {
         ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-        Console.WriteLine("UC Agent v2.2 starting...");
+        Console.WriteLine("UC Agent v2.3 starting...");
         try {
             var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct");
             string uuid = "unknown";
             foreach (ManagementObject mo in searcher.Get()) { uuid = mo["UUID"].ToString(); break; }
             DEVICE_ID = Environment.MachineName + "-" + uuid;
         } catch { DEVICE_ID = Environment.MachineName; }
+        try {
+            var os = new ManagementObjectSearcher("SELECT Caption FROM Win32_OperatingSystem");
+            foreach (ManagementObject mo in os.Get()) { OS_NAME = mo["Caption"].ToString().Trim(); break; }
+        } catch { }
+        try {
+            using (var sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)) {
+                sock.Connect("8.8.8.8", 53);
+                LOCAL_IP = ((IPEndPoint)sock.LocalEndPoint).Address.ToString();
+            }
+        } catch { }
+        try {
+            var req = (HttpWebRequest)WebRequest.Create("https://api.ipify.org");
+            req.Timeout = 5000;
+            using (var res = req.GetResponse())
+            using (var sr = new StreamReader(res.GetResponseStream()))
+                PUBLIC_IP = sr.ReadToEnd().Trim();
+        } catch { }
         
         int n = 0;
         while (true) {
@@ -35,9 +56,9 @@ class UCAgent {
     
     static void SendHeartbeat() {
         string json = "{\"deviceId\":\"" + DEVICE_ID + "\",\"name\":\"" + Environment.MachineName + 
-            "\",\"os\":\"Windows\",\"ip\":\"local\",\"resolution\":\"" + 
-            Screen.PrimaryScreen.Bounds.Width + "x" + Screen.PrimaryScreen.Bounds.Height + 
-            "\",\"userId\":\"jay\",\"version\":\"2.2\"}";
+            "\",\"os\":\"" + OS_NAME + "\",\"ip\":\"" + LOCAL_IP + "\",\"publicIp\":\"" + PUBLIC_IP + 
+            "\",\"resolution\":\"" + Screen.PrimaryScreen.Bounds.Width + "x" + Screen.PrimaryScreen.Bounds.Height + 
+            "\",\"userId\":\"jay\",\"version\":\"2.3\"}";
         Post(SERVER + "/api/devices", json);
         Console.WriteLine("Heartbeat OK");
     }
