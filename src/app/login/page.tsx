@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [chatId, setChatId] = useState("");
@@ -36,12 +37,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4 text-white">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-cyan-600 rounded-2xl mb-4">
-            <span className="text-3xl font-bold">UC</span>
-          </div>
+          <Link href="/">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-cyan-600 rounded-2xl mb-4">
+              <span className="text-3xl font-bold">UC</span>
+            </div>
+          </Link>
           <h1 className="text-2xl font-bold">Universal Connect</h1>
           <p className="text-gray-400 mt-1">Secure Remote Access</p>
         </div>
@@ -65,7 +68,6 @@ export default function LoginPage() {
                 placeholder="e.g. 2102262384"
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
             </div>
-
             {mode === "register" && (
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Telegram Username</label>
@@ -74,16 +76,13 @@ export default function LoginPage() {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
               </div>
             )}
-
             {error && <p className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">{error}</p>}
             {success && <p className="text-green-400 text-sm bg-green-900/20 border border-green-800 rounded-lg px-3 py-2">{success}</p>}
-
             <button onClick={mode === "login" ? handleLogin : handleRegister} disabled={loading || !chatId}
               className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-medium transition">
               {loading ? "..." : mode === "login" ? "Login" : "Register"}
             </button>
           </div>
-
           <p className="text-gray-500 text-xs mt-4 text-center">
             Message <a href="https://t.me/Atlasdevhouse_bot" className="text-cyan-400">@Atlasdevhouse_bot</a> on Telegram to get your Chat ID
           </p>
