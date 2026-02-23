@@ -12,6 +12,8 @@ interface Stats { totalUsers: number; activeUsers: number; pendingUsers: number;
 export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, activeUsers: 0, pendingUsers: 0, totalDevices: 0, onlineDevices: 0 });
+  const [showAdd, setShowAdd] = useState(false);
+  const [newUser, setNewUser] = useState({ chatId: "", username: "", displayName: "", subscription: "free", role: "user" });
 
   const fetchData = async () => {
     const res = await fetch("/api/admin/users");
@@ -28,6 +30,18 @@ export default function AdminPage() {
     await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
     fetchData();
   };
+  const addUser = async () => {
+    if (!newUser.chatId) return;
+    const res = await fetch("/api/admin/users", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newUser),
+    });
+    if (res.ok) {
+      setShowAdd(false);
+      setNewUser({ chatId: "", username: "", displayName: "", subscription: "free", role: "user" });
+      fetchData();
+    }
+  };
 
   const statCards = [
     { label: "TOTAL USERS", value: stats.totalUsers, color: "border-blue-500", text: "text-blue-400" },
@@ -39,10 +53,68 @@ export default function AdminPage() {
 
   return (
     <AppShell role="admin">
-      <header className="px-6 py-4 border-b border-gray-800">
-        <h1 className="text-xl font-bold">👥 User Management</h1>
-        <p className="text-gray-500 text-sm">Manage subscribers and permissions</p>
+      <header className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">👥 User Management</h1>
+          <p className="text-gray-500 text-sm">Manage subscribers and permissions</p>
+        </div>
+        <button onClick={() => setShowAdd(true)}
+          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium transition">
+          + Add User
+        </button>
       </header>
+
+      {/* Add User Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold">+ Add New User</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-500 hover:text-white text-xl">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Telegram Chat ID *</label>
+                <input type="text" value={newUser.chatId} onChange={e => setNewUser(u => ({ ...u, chatId: e.target.value }))}
+                  placeholder="e.g. 2102262384"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Telegram Username</label>
+                <input type="text" value={newUser.username} onChange={e => setNewUser(u => ({ ...u, username: e.target.value }))}
+                  placeholder="@username"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Display Name</label>
+                <input type="text" value={newUser.displayName} onChange={e => setNewUser(u => ({ ...u, displayName: e.target.value }))}
+                  placeholder="John Doe"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Subscription</label>
+                  <select value={newUser.subscription} onChange={e => setNewUser(u => ({ ...u, subscription: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-cyan-500 focus:outline-none">
+                    <option value="free">Free</option><option value="basic">Basic</option><option value="pro">Pro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Role</label>
+                  <select value={newUser.role} onChange={e => setNewUser(u => ({ ...u, role: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-cyan-500 focus:outline-none">
+                    <option value="user">User</option><option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <button onClick={addUser} disabled={!newUser.chatId}
+                className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 py-3 rounded-lg font-medium transition mt-2">
+                Create User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-5 gap-4 p-6">
         {statCards.map(s => (
