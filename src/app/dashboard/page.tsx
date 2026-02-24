@@ -9,7 +9,7 @@ interface PC {
 }
 
 export default function DashboardPage() {
-  const { role } = useAuth();
+  const { role, userId } = useAuth(); // Get userId from auth hook
   const [pcs, setPcs] = useState<PC[]>([]);
   const [selectedPc, setSelectedPc] = useState<PC | null>(null);
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -18,12 +18,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchPcs = async () => {
-      try { const res = await fetch("/api/devices"); if (res.ok) { const data = await res.json(); if (data.length > 0) setPcs(data); } } catch {}
+      try {
+        let apiUrl = "/api/devices";
+        // Only filter by userId if the user is not an admin
+        if (role !== "admin" && userId) {
+          apiUrl += `?userId=${userId}`;
+        }
+        const res = await fetch(apiUrl);
+        if (res.ok) {
+          const data = await res.json();
+          setPcs(data);
+        }
+      } catch (e) { console.error("Error fetching devices:", e); }
     };
     fetchPcs();
     const interval = setInterval(fetchPcs, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [role, userId]); // Re-run effect if role or userId changes
 
   useEffect(() => {
     if (!selectedPc || !streaming) return;
