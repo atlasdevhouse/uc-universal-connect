@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (body.chatId) {
     const { data: user } = await supabase
       .from("users")
-      .select("id, role, status, display_name")
+      .select("id, role, status, display_name, subscription") // Added subscription
       .eq("telegram_chat_id", body.chatId)
       .eq("role", "admin")
       .single();
@@ -23,10 +23,11 @@ export async function POST(req: Request) {
 
     await supabase.from("users").update({ last_login: new Date().toISOString() }).eq("id", user.id);
 
-    const res = NextResponse.json({ ok: true, role: "admin", userId: user.id, name: user.display_name });
+    const res = NextResponse.json({ ok: true, role: "admin", userId: user.id, name: user.display_name, subscription: user.subscription });
     res.cookies.set("uc_user_id", String(user.id), { path: "/", maxAge: 86400 * 30 });
     res.cookies.set("uc_role", "admin", { path: "/", maxAge: 86400 * 30 });
     res.cookies.set("uc_chat_id", body.chatId, { path: "/", maxAge: 86400 * 30 });
+    res.cookies.set("uc_subscription", user.subscription, { path: "/", maxAge: 86400 * 30 }); // Added subscription cookie
     return res;
   }
 
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
 
   const { data: user } = await supabase
     .from("users")
-    .select("id, role, status, password_hash, display_name")
+    .select("id, role, status, password_hash, display_name, subscription") // Added subscription
     .eq("email", email.toLowerCase().trim())
     .single();
 
@@ -48,9 +49,10 @@ export async function POST(req: Request) {
 
   await supabase.from("users").update({ last_login: new Date().toISOString() }).eq("id", user.id);
 
-  const res = NextResponse.json({ ok: true, role: user.role, userId: user.id, name: user.display_name });
+  const res = NextResponse.json({ ok: true, role: user.role, userId: user.id, name: user.display_name, subscription: user.subscription });
   res.cookies.set("uc_user_id", String(user.id), { path: "/", maxAge: 86400 * 30 });
   res.cookies.set("uc_role", user.role, { path: "/", maxAge: 86400 * 30 });
   res.cookies.set("uc_email", email.toLowerCase().trim(), { path: "/", maxAge: 86400 * 30 });
+  res.cookies.set("uc_subscription", user.subscription, { path: "/", maxAge: 86400 * 30 }); // Added subscription cookie
   return res;
 }

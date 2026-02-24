@@ -33,6 +33,8 @@ export default function AppShell({ children, role = "user" }: SidebarProps) {
     document.cookie = "uc_chat_id=; path=/; max-age=0";
     document.cookie = "uc_role=; path=/; max-age=0";
     document.cookie = "uc_user_id=; path=/; max-age=0";
+    document.cookie = "uc_email=; path=/; max-age=0"; // Clear email cookie
+    document.cookie = "uc_subscription=; path=/; max-age=0"; // Clear subscription cookie
     router.push("/login");
   };
 
