@@ -13,10 +13,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: "User ID and recipient email required." }, { status: 400 });
   }
 
-  // 1. Verify if user exists and has a premium subscription (basic or pro)
+  // 1. Get user details including subscription for SMTP lookup logic
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("install_token, subscription, display_name")
+    .select("id, install_token, subscription, display_name")
     .eq("id", userId)
     .single();
 
@@ -25,9 +25,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: "User not found." }, { status: 404 });
   }
 
-  if (user.subscription !== "basic" && user.subscription !== "pro") {
-    return NextResponse.json({ success: false, message: "Subscription required to email agent." }, { status: 403 });
-  }
+  // Now, all users can attempt to email. The `sendEmailWithAttachment` will decide SMTP config.
+  // if (user.subscription !== "basic" && user.subscription !== "pro") {
+  //   return NextResponse.json({ success: false, message: "Subscription required to email agent." }, { status: 403 });
+  // }
 
   const installToken = user.install_token;
   if (!installToken) {
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
   const subject = "Your Custom UC Connect Agent Source Code";
   const htmlBody = `
     <p>Dear ${user.display_name || "User"},</p>
-    <p>Thank you for being a ${user.subscription} subscriber to UC Universal Connect!</p>
+    <p>Thank you for using UC Universal Connect!</p>
     <p>As requested, attached is your customized C# agent source code (UCAgent_${installToken.substring(0, 8)}.cs).</p>
     <p>To deploy it, follow these steps:</p>
     <ol>
@@ -72,16 +73,15 @@ export async function POST(req: Request) {
     subject,
     htmlBody,
     attachmentFilename,
-    Buffer.from(agentCode)
+    Buffer.from(agentCode),
+    user.id, // Pass userId
+    user.subscription // Pass subscription
   );
 
   if (!success) {
     console.error("Failed to send email:", message);
     return NextResponse.json({ success: false, message: message || "Failed to send email." }, { status: 500 });
   }
-
-  // Optionally, send a Telegram notification to the user that the email has been sent.
-  // This would require fetching the user's telegram_chat_id and using sendTelegram().
 
   return NextResponse.json({ success: true, message: "Agent source code emailed successfully." });
 }
