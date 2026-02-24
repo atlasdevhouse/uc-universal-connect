@@ -12,7 +12,8 @@ using System.Runtime.InteropServices;
 using System.Web.Script.Serialization;
 
 class UCAgent {
-    static string SERVER = "https://uc-universal-connect-omega.vercel.app";
+    static string SERVER = "##SERVER_URL##"; // Replaced by server
+    static string INSTALL_TOKEN = "##INSTALL_TOKEN##"; // Replaced by server
     static string DEVICE_ID;
     static string OS_NAME = "Windows";
     static string LOCAL_IP = "unknown";
@@ -70,7 +71,7 @@ class UCAgent {
         string json = "{\"deviceId\":\"" + DEVICE_ID + "\",\"name\":\"" + Environment.MachineName + 
             "\",\"os\":\"" + OS_NAME + "\",\"ip\":\"" + LOCAL_IP + "\",\"publicIp\":\"" + PUBLIC_IP + 
             "\",\"resolution\":\"" + Screen.PrimaryScreen.Bounds.Width + "x" + Screen.PrimaryScreen.Bounds.Height + 
-            "\",\"userId\":\"jay\",\"version\":\"2.4\"}";
+            "\",\"token\":\"" + INSTALL_TOKEN + "\",\"version\":\"2.4\"}";
         Post(SERVER + "/api/devices", json);
         Console.WriteLine("Heartbeat OK");
     }

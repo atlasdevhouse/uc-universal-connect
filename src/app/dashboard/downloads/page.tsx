@@ -1,22 +1,27 @@
 "use client";
 import { useState, useEffect } from "react";
 import AppShell from "@/components/AppShell";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function UserDownloadsPage() {
+  const { userId, role } = useAuth(); 
   const [token, setToken] = useState<string | null>(null);
-
+  const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL || "https://uc-universal-connect-omega.vercel.app";
   useEffect(() => {
-    const cookies = document.cookie.split("; ").reduce((acc, c) => { const [k, v] = c.split("="); acc[k] = v; return acc; }, {} as Record<string, string>);
-    const chatId = cookies.uc_chat_id;
-    if (chatId) {
-      fetch(`/api/auth/token?chatId=${chatId}`).then(r => r.json()).then(d => { if (d.token) setToken(d.token); }).catch(() => {});
+    if (userId) {
+      // Fetch the install token for the logged-in user
+      fetch(`/api/auth/token?userId=${userId}`)
+        .then(r => r.json())
+        .then(d => { if (d.token) setToken(d.token); })
+        .catch(() => {});
     }
-  }, []);
+  }, [userId]);
 
-  const deployCmd = `mkdir C:\\UC 2>nul & curl -o C:\\UC\\agent.cs "https://raw.githubusercontent.com/atlasdevhouse/uc-universal-connect/main/agent/UCAgent.cs" && C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe /target:winexe /out:C:\\UC\\UCService.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Management.dll /r:System.Web.Extensions.dll C:\\UC\\agent.cs && C:\\UC\\UCService.exe`;
+  const downloadLink = token ? `${vercelUrl}/api/agent/download?token=${token}` : "#";
+  const deployCmd = `mkdir C:\\UC 2>nul & curl -o C:\\UC\\UCAgent_${token?.substring(0, 8) || ""}.cs "${downloadLink}" && C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe /target:winexe /out:C:\\UC\\UCService.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Management.dll /r:System.Web.Extensions.dll C:\\UC\\UCAgent_${token?.substring(0, 8) || ""}.cs && C:\\UC\\UCService.exe`;
 
   return (
-    <AppShell role="user">
+    <AppShell role={role}>
       <header className="px-6 py-4 border-b border-gray-800">
         <h1 className="text-xl font-bold">📥 Downloads</h1>
         <p className="text-gray-500 text-sm">Install the agent on your Windows PC</p>
