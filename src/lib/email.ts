@@ -15,7 +15,7 @@ async function getSmtpConfig(userId: number, subscription: string): Promise<Smtp
   if (subscription === "basic" || subscription === "pro") {
     const host = process.env.SMTP_HOST;
     const port = parseInt(process.env.SMTP_PORT || "587", 10);
-    const secure = process.env.SMTP_SECURE === "true"; // This was false
+    const secure = process.env.SMTP_SECURE === "true"; 
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
     const fromAddress = process.env.FROM_EMAIL_ADDRESS;
@@ -25,11 +25,11 @@ async function getSmtpConfig(userId: number, subscription: string): Promise<Smtp
     console.log(`DEBUG: SMTP_PORT: ${port ? 'set' : 'NOT SET'}`);
     console.log(`DEBUG: SMTP_SECURE: ${process.env.SMTP_SECURE} (evaluated as ${secure})`);
     console.log(`DEBUG: SMTP_USER: ${user ? 'set' : 'NOT SET'}`);
-    console.log(`DEBUG: SMTP_PASS: ${pass ? 'set' : 'NOT SET' ? 'length='+ pass.length : 'NOT SET' }`); // Avoid logging full pass
+    console.log(`DEBUG: SMTP_PASS: ${pass ? 'set (length=' + pass.length + ')' : 'NOT SET' }`); // Fixed for TypeScript
     console.log(`DEBUG: FROM_EMAIL_ADDRESS: ${fromAddress ? 'set' : 'NOT SET'}`);
 
     if (!host || !user || !pass || !fromAddress) {
-      console.warn("Global SMTP configuration is incomplete. Critical check failed."); // Added 'Critical check failed' to distinguish
+      console.warn("Global SMTP configuration is incomplete. Critical check failed."); 
       return null; 
     }
     return { host, port, secure, user, pass, fromAddress };
