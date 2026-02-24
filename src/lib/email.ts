@@ -5,8 +5,9 @@ interface SmtpConfig {
   host: string;
   port: number;
   secure: boolean;
-  user: string;
-  pass: string;
+  user: string; // SMTP authentication username (e.g., 'apikey')
+  pass: string; // SMTP authentication password (API key)
+  fromAddress: string; // The actual email address used in the 'From:' header
 }
 
 async function getSmtpConfig(userId: number, subscription: string): Promise<SmtpConfig | null> {
@@ -14,15 +15,24 @@ async function getSmtpConfig(userId: number, subscription: string): Promise<Smtp
   if (subscription === "basic" || subscription === "pro") {
     const host = process.env.SMTP_HOST;
     const port = parseInt(process.env.SMTP_PORT || "587", 10);
-    const secure = process.env.SMTP_SECURE === "true";
+    const secure = process.env.SMTP_SECURE === "true"; // This was false
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
+    const fromAddress = process.env.FROM_EMAIL_ADDRESS;
 
-    if (!host || !user || !pass) {
-      console.warn("Global SMTP configuration is incomplete. Check environment variables.");
-      return null;
+    console.log("DEBUG: SMTP Environment Variables:");
+    console.log(`DEBUG: SMTP_HOST: ${host ? 'set' : 'NOT SET'}`);
+    console.log(`DEBUG: SMTP_PORT: ${port ? 'set' : 'NOT SET'}`);
+    console.log(`DEBUG: SMTP_SECURE: ${process.env.SMTP_SECURE} (evaluated as ${secure})`);
+    console.log(`DEBUG: SMTP_USER: ${user ? 'set' : 'NOT SET'}`);
+    console.log(`DEBUG: SMTP_PASS: ${pass ? 'set' : 'NOT SET' ? 'length='+ pass.length : 'NOT SET' }`); // Avoid logging full pass
+    console.log(`DEBUG: FROM_EMAIL_ADDRESS: ${fromAddress ? 'set' : 'NOT SET'}`);
+
+    if (!host || !user || !pass || !fromAddress) {
+      console.warn("Global SMTP configuration is incomplete. Critical check failed."); // Added 'Critical check failed' to distinguish
+      return null; 
     }
-    return { host, port, secure, user, pass };
+    return { host, port, secure, user, pass, fromAddress };
   }
 
   // Free tier users must provide their own SMTP settings
@@ -39,10 +49,11 @@ async function getSmtpConfig(userId: number, subscription: string): Promise<Smtp
   }
 
   const userSmtpConfig = data.setting_value as SmtpConfig;
+  // For free users, their configured 'user' is also their 'fromAddress'
   if (!userSmtpConfig.host || !userSmtpConfig.user || !userSmtpConfig.pass) {
     return null;
   }
-  return userSmtpConfig;
+  return { ...userSmtpConfig, fromAddress: userSmtpConfig.user }; // Use their SMTP user as fromAddress
 }
 
 export async function sendEmailWithAttachment(
@@ -67,14 +78,13 @@ export async function sendEmailWithAttachment(
       user: smtpConfig.user,
       pass: smtpConfig.pass,
     },
-    // Recommended: disable TLS rejection for self-signed certificates in dev, but use proper CAs in prod
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false } // Needed for some SMTP servers, but generally recommend `true` for security
   });
 
   try {
     await transporter.verify();
     const info = await transporter.sendMail({
-      from: `UC Universal Connect <${smtpConfig.user}>`,
+      from: `UC Universal Connect <${smtpConfig.fromAddress}>`, // <-- Use the correct fromAddress here
       to,
       subject,
       html,
