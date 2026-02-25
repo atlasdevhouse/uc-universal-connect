@@ -354,8 +354,9 @@ class UCAgent
           errors.push(`${email}: ${emailResult.message}`);
         }
       } catch (error) {
-        emailResults.push({ email, status: 'failed', error: error.message });
-        errors.push(`${email}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        emailResults.push({ email, status: 'failed', error: errorMessage });
+        errors.push(`${email}: ${errorMessage}`);
       }
     }
 
@@ -374,8 +375,9 @@ class UCAgent
 
   } catch (error) {
     console.error('Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to send agent', details: error.message },
+      { error: 'Failed to send agent', details: errorMessage },
       { status: 500 }
     );
   }
