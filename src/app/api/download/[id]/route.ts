@@ -63,8 +63,9 @@ export async function GET(
 
   } catch (error) {
     console.error('Download error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Download failed', details: error.message },
+      { error: 'Download failed', details: errorMessage },
       { status: 500 }
     );
   }
