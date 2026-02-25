@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // Block Outlook domains until we get dedicated IP
     const blockedDomains = ['outlook.com', 'hotmail.com', 'live.com', 'msn.com'];
-    const blockedEmails = emails.filter(email => {
+    const blockedEmails = emails.filter((email: string) => {
       const domain = email.split('@')[1]?.toLowerCase();
       return blockedDomains.includes(domain);
     });
