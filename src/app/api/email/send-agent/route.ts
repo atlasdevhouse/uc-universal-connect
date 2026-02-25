@@ -67,47 +67,12 @@ export async function POST(request: NextRequest) {
 
     // Get compiled executable
     const exeBuffer = await buildResponse.arrayBuffer();
-    const exeBytes = new Uint8Array(exeBuffer);
+    const exeBytes = Buffer.from(exeBuffer);
 
-    // Generate unique download ID
-    const downloadId = crypto.randomUUID();
-    
-    // Store executable temporarily in Supabase storage
-    const { error: uploadError } = await supabase.storage
-      .from('temp-downloads')
-      .upload(`${downloadId}.exe`, exeBytes, {
-        contentType: 'application/octet-stream',
-        cacheControl: '3600',
-      });
+    // For now, send .exe as direct email attachment to bypass storage issues
+    // TODO: Fix Supabase storage policies later
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw new Error('Failed to store executable');
-    }
-
-    // Create download record with expiration
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 48); // 48 hour expiration
-
-    const { error: recordError } = await supabase
-      .from('download_links')
-      .insert({
-        download_id: downloadId,
-        user_id: user.id,
-        filename: 'UCAgent.exe',
-        expires_at: expiresAt.toISOString(),
-        created_at: new Date().toISOString()
-      });
-
-    if (recordError) {
-      console.error('Record error:', recordError);
-      throw new Error('Failed to create download record');
-    }
-
-    // Create download URL
-    const downloadUrl = `${serverUrl}/api/download/${downloadId}`;
-
-    // Email HTML template with download link
+    // Email HTML template
     const emailHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -128,10 +93,9 @@ export async function POST(request: NextRequest) {
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
-            <a href="${downloadUrl}" 
-               style="display: inline-block; background: linear-gradient(45deg, #007acc, #0056b3); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                📥 Download UC Agent (.exe)
-            </a>
+            <p style="background: linear-gradient(45deg, #007acc, #0056b3); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block;">
+                📥 UC Agent (.exe) - See Email Attachment
+            </p>
         </div>
         
         <div style="background: #f8f9fa; border-left: 4px solid #007acc; padding: 15px; margin: 20px 0;">
@@ -156,7 +120,7 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    // Send emails to all recipients
+    // Send emails to all recipients with .exe attachment
     const emailResults = [];
     const errors = [];
 
@@ -164,10 +128,10 @@ export async function POST(request: NextRequest) {
       try {
         const emailResult = await sendEmailWithAttachment(
           email,
-          'UC Connect Agent - Ready for Download',
+          'UC Connect Agent - Ready to Run',
           emailHtml,
-          '', // No filename
-          Buffer.from(''), // No attachment
+          'UCAgent.exe', // Executable filename
+          exeBytes, // Compiled executable
           user.id,
           user.subscription || 'free'
         );
@@ -190,8 +154,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: successCount > 0,
-      message: `Agent compiled. Emails: ${successCount} sent, ${failureCount} failed`,
-      downloadId: downloadId,
+      message: `Agent compiled and emailed. Emails: ${successCount} sent, ${failureCount} failed`,
       emailResults: emailResults,
       totalEmails: emails.length,
       successCount,
