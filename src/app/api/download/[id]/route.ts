@@ -3,10 +3,11 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const downloadId = params.id;
+    const { id } = await params;
+    const downloadId = id;
 
     // Check if download link exists and is not expired
     const { data: downloadRecord, error: recordError } = await supabase
