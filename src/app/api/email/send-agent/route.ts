@@ -46,75 +46,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid install token' }, { status: 400 });
     }
 
-    // Generate customized C# agent source - simplified version for Build Service compatibility
+    // Generate parameters for Build Service template compilation
     const serverUrl = process.env.VERCEL_APP_URL || 'https://uc-universal-connect-omega.vercel.app';
-    
-    const agentSource = `using System;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
 
-class UCAgent
-{
-    private static readonly string SERVER_URL = "${serverUrl}";
-    private static readonly string INSTALL_TOKEN = "${installToken}";
-    private static readonly HttpClient client = new HttpClient();
-    private static string deviceId = Environment.MachineName + "-" + Guid.NewGuid().ToString();
-
-    static async Task Main()
-    {
-        try
-        {
-            Console.WriteLine("UC Agent Starting...");
-            
-            // Start heartbeat loop
-            while (true)
-            {
-                await SendHeartbeat();
-                await Task.Delay(30000); // 30 seconds
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-    }
-
-    private static async Task SendHeartbeat()
-    {
-        try
-        {
-            var payload = new
-            {
-                deviceId = deviceId,
-                installToken = INSTALL_TOKEN,
-                status = "online",
-                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                osName = Environment.OSVersion.ToString(),
-                machineName = Environment.MachineName
-            };
-
-            string json = System.Text.Json.JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            
-            var response = await client.PostAsync($"{SERVER_URL}/api/heartbeat", content);
-            
-            Console.WriteLine($"Heartbeat sent: {response.StatusCode}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Heartbeat failed: {ex.Message}");
-        }
-    }
-}`;
-
-    // Send C# source to Build Service for compilation
+    // Send parameters to Build Service for template-based compilation
     const buildResponse = await fetch(BUILD_SERVICE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ sourceCode: agentSource }),
+      body: JSON.stringify({ 
+        serverUrl: serverUrl,
+        installToken: installToken 
+      }),
     });
 
     if (!buildResponse.ok) {
