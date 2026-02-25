@@ -46,36 +46,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid install token' }, { status: 400 });
     }
 
-    // Generate customized C# agent source
+    // Generate customized C# agent source - simplified version for Build Service compatibility
     const serverUrl = process.env.VERCEL_APP_URL || 'https://uc-universal-connect-omega.vercel.app';
     
     const agentSource = `using System;
-using System.Threading.Tasks;
 using System.Net.Http;
 using System.Text;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Windows.Forms;
-using System.IO;
-using System.Management;
-using System.Net;
-using Microsoft.Win32;
-using System.Diagnostics;
+using System.Threading.Tasks;
 
 class UCAgent
 {
     private static readonly string SERVER_URL = "${serverUrl}";
     private static readonly string INSTALL_TOKEN = "${installToken}";
     private static readonly HttpClient client = new HttpClient();
-    private static string deviceId;
+    private static string deviceId = Environment.MachineName + "-" + Guid.NewGuid().ToString();
 
     static async Task Main()
     {
         try
         {
-            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
-            
-            deviceId = GetDeviceId();
+            Console.WriteLine("UC Agent Starting...");
             
             // Start heartbeat loop
             while (true)
@@ -86,32 +76,7 @@ class UCAgent
         }
         catch (Exception ex)
         {
-            // Silent fail - no error messages in production
-        }
-    }
-
-    private static string GetDeviceId()
-    {
-        try
-        {
-            string computerName = Environment.MachineName;
-            
-            // Get motherboard serial number
-            string mbSerial = "";
-            using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard"))
-            {
-                foreach (ManagementObject obj in searcher.Get())
-                {
-                    mbSerial = obj["SerialNumber"]?.ToString() ?? "";
-                    break;
-                }
-            }
-            
-            return $"{computerName}-{mbSerial}";
-        }
-        catch
-        {
-            return Environment.MachineName + "-" + Guid.NewGuid().ToString();
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 
@@ -125,10 +90,8 @@ class UCAgent
                 installToken = INSTALL_TOKEN,
                 status = "online",
                 timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                screenResolution = GetScreenResolution(),
-                osName = GetOSName(),
-                localIP = GetLocalIP(),
-                publicIP = await GetPublicIP()
+                osName = Environment.OSVersion.ToString(),
+                machineName = Environment.MachineName
             };
 
             string json = System.Text.Json.JsonSerializer.Serialize(payload);
@@ -136,93 +99,11 @@ class UCAgent
             
             var response = await client.PostAsync($"{SERVER_URL}/api/heartbeat", content);
             
-            if (response.IsSuccessStatusCode)
-            {
-                // Optionally handle screenshot requests or commands
-                await HandleCommands();
-            }
+            Console.WriteLine($"Heartbeat sent: {response.StatusCode}");
         }
-        catch
+        catch (Exception ex)
         {
-            // Silent fail
-        }
-    }
-
-    private static async Task HandleCommands()
-    {
-        try
-        {
-            var response = await client.GetAsync($"{SERVER_URL}/api/commands?deviceId={deviceId}");
-            if (response.IsSuccessStatusCode)
-            {
-                string jsonResponse = await response.Content.ReadAsStringAsync();
-                // Handle any pending commands (screenshot, click, type, etc.)
-                // Implementation depends on your command structure
-            }
-        }
-        catch
-        {
-            // Silent fail
-        }
-    }
-
-    private static string GetScreenResolution()
-    {
-        try
-        {
-            return $"{Screen.PrimaryScreen.Bounds.Width}x{Screen.PrimaryScreen.Bounds.Height}";
-        }
-        catch
-        {
-            return "1920x1080";
-        }
-    }
-
-    private static string GetOSName()
-    {
-        try
-        {
-            using (var searcher = new ManagementObjectSearcher("SELECT Caption FROM Win32_OperatingSystem"))
-            {
-                foreach (ManagementObject obj in searcher.Get())
-                {
-                    return obj["Caption"]?.ToString() ?? "Windows";
-                }
-            }
-            return "Windows";
-        }
-        catch
-        {
-            return "Windows";
-        }
-    }
-
-    private static string GetLocalIP()
-    {
-        try
-        {
-            using (var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Dgram, 0))
-            {
-                socket.Connect("8.8.8.8", 53);
-                return ((IPEndPoint)socket.LocalEndPoint).Address.ToString();
-            }
-        }
-        catch
-        {
-            return "127.0.0.1";
-        }
-    }
-
-    private static async Task<string> GetPublicIP()
-    {
-        try
-        {
-            var response = await client.GetStringAsync("https://api.ipify.org");
-            return response.Trim();
-        }
-        catch
-        {
-            return "unknown";
+            Console.WriteLine($"Heartbeat failed: {ex.Message}");
         }
     }
 }`;
