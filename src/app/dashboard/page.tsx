@@ -16,21 +16,30 @@ export default function DashboardPage() {
   const [streaming, setStreaming] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchPcs = async () => {
+    try {
+      let apiUrl = "/api/devices";
+      // Only filter by userId if the user is not an admin
+      if (role !== "admin" && userId) {
+        apiUrl += `?userId=${userId}`;
+      }
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const data = await res.json();
+        setPcs(data);
+      }
+    } catch (e) { console.error("Error fetching devices:", e); }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchPcs();
+    setTimeout(() => setRefreshing(false), 1000); // Show refreshing state briefly
+  };
+
   useEffect(() => {
-    const fetchPcs = async () => {
-      try {
-        let apiUrl = "/api/devices";
-        // Only filter by userId if the user is not an admin
-        if (role !== "admin" && userId) {
-          apiUrl += `?userId=${userId}`;
-        }
-        const res = await fetch(apiUrl);
-        if (res.ok) {
-          const data = await res.json();
-          setPcs(data);
-        }
-      } catch (e) { console.error("Error fetching devices:", e); }
-    };
     fetchPcs();
     const interval = setInterval(fetchPcs, 5000);
     return () => clearInterval(interval);
@@ -119,9 +128,19 @@ export default function DashboardPage() {
 
   return (
     <AppShell role={role}>
-      <header className="px-6 py-4 border-b border-gray-800">
-        <h1 className="text-xl font-bold">🖥️ Devices</h1>
-        <p className="text-gray-500 text-sm">{pcs.filter(p => p.status === "online").length} online &bull; {pcs.length} total</p>
+      <header className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold">🖥️ Devices</h1>
+          <p className="text-gray-500 text-sm">{pcs.filter(p => p.status === "online").length} online &bull; {pcs.length} total</p>
+        </div>
+        <button 
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-sm font-medium transition"
+        >
+          <span className={refreshing ? "animate-spin" : ""}>🔄</span>
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
       </header>
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
