@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Send Telegram notification for new device connections
     const now = new Date();
-    const deviceAge = now.getTime() - new Date(deviceData.last_heartbeat).getTime();
+    const deviceAge = now.getTime() - new Date(deviceData.last_seen).getTime();
     
     // If this is a new connection (first heartbeat or reconnection after >5 minutes)
     if (deviceAge > 5 * 60 * 1000) {
