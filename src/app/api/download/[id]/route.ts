@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(
   request: NextRequest,
@@ -26,18 +28,16 @@ export async function GET(
       return NextResponse.json({ error: 'Download link has expired' }, { status: 410 });
     }
 
-    // Get file from Supabase storage
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('temp-downloads')
-      .download(`${downloadId}.exe`);
-
-    if (downloadError || !fileData) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    // Get file from Vercel filesystem
+    const tempDir = path.join('/tmp', 'uc-downloads');
+    const exePath = path.join(tempDir, `${downloadId}.exe`);
+    
+    if (!fs.existsSync(exePath)) {
+      return NextResponse.json({ error: 'File not found or expired' }, { status: 404 });
     }
-
-    // Convert blob to buffer
-    const arrayBuffer = await fileData.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    
+    // Read file from filesystem
+    const buffer = fs.readFileSync(exePath);
 
     // Update download count (optional)
     await supabase

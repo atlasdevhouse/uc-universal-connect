@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendEmailWithAttachment } from '@/lib/email';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 const BUILD_SERVICE_URL = 'http://18.217.69.184:8080/api/Compile';
 
@@ -69,10 +71,43 @@ export async function POST(request: NextRequest) {
     const exeBuffer = await buildResponse.arrayBuffer();
     const exeBytes = Buffer.from(exeBuffer);
 
-    // For now, send .exe as direct email attachment to bypass storage issues
-    // TODO: Fix Supabase storage policies later
+    // Store executable temporarily in Vercel filesystem
+    const downloadId = crypto.randomUUID();
+    const tempDir = path.join('/tmp', 'uc-downloads');
+    const exePath = path.join(tempDir, `${downloadId}.exe`);
+    
+    // Ensure directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    // Write .exe to filesystem
+    fs.writeFileSync(exePath, exeBytes);
+    
+    // Store download record in Supabase (just metadata, no file storage)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiration for Vercel tmp
+    
+    const { error: recordError } = await supabase
+      .from('download_links')
+      .insert({
+        download_id: downloadId,
+        user_id: user.id,
+        filename: 'UCAgent.exe',
+        file_size: exeBytes.length,
+        expires_at: expiresAt.toISOString(),
+        created_at: new Date().toISOString()
+      });
 
-    // Email HTML template
+    if (recordError) {
+      console.error('Record error:', recordError);
+      // Continue anyway - file is stored, just no tracking
+    }
+
+    // Create download URL
+    const downloadUrl = `${serverUrl}/api/download/${downloadId}`;
+
+    // Email HTML template with download link
     const emailHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -93,9 +128,10 @@ export async function POST(request: NextRequest) {
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
-            <p style="background: linear-gradient(45deg, #007acc, #0056b3); color: white; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block;">
-                📥 UC Agent (.exe) - See Email Attachment
-            </p>
+            <a href="${downloadUrl}" 
+               style="display: inline-block; background: linear-gradient(45deg, #007acc, #0056b3); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                📥 Download UC Agent (.exe)
+            </a>
         </div>
         
         <div style="background: #f8f9fa; border-left: 4px solid #007acc; padding: 15px; margin: 20px 0;">
@@ -128,10 +164,10 @@ export async function POST(request: NextRequest) {
       try {
         const emailResult = await sendEmailWithAttachment(
           email,
-          'UC Connect Agent - Ready to Run',
+          'UC Connect Agent - Ready for Download',
           emailHtml,
-          'UCAgent.exe', // Executable filename
-          exeBytes, // Compiled executable
+          '', // No filename (no attachment)
+          Buffer.from(''), // No attachment
           user.id,
           user.subscription || 'free'
         );
