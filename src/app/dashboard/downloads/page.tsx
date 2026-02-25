@@ -32,15 +32,15 @@ export default function UserDownloadsPage() {
     const res = await fetch("/api/email/send-agent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, recipientEmail: emailRecipient }),
+      body: JSON.stringify({ recipientEmail: emailRecipient, installToken: token }),
     });
     const data = await res.json();
     setEmailSending(false);
     if (data.success) {
-      setEmailResult("✅ Agent source code sent successfully!");
+      setEmailResult("✅ Agent compiled and emailed successfully!");
       setShowEmailModal(false);
     } else {
-      setEmailResult(`❌ Failed to send email: ${data.message}`);
+      setEmailResult(`❌ Failed to send email: ${data.error || data.message}`);
     }
   };
 
