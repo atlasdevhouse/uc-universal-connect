@@ -20,25 +20,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid install token' }, { status: 401 });
     }
 
-    // Update or insert device record
+    // Update or insert device record (match existing table structure)
     const deviceData = {
-      device_id: deviceId,
-      user_id: user.id,
+      id: deviceId, // existing table uses 'id' not 'device_id'
+      user_id: user.id.toString(), // existing table uses text not integer
       name: machineName || deviceId.split('-')[0],
-      os_name: osName || 'Windows',
-      local_ip: localIP || 'unknown',
-      public_ip: publicIP || 'unknown', 
-      screen_resolution: screenResolution || '1920x1080',
+      os: osName || 'Windows', // existing table uses 'os' not 'os_name'
+      ip: localIP || 'unknown', // existing table uses 'ip' not 'local_ip'
+      public_ip: publicIP || 'unknown',
+      resolution: screenResolution || '1920x1080', // existing table uses 'resolution'
       status: status || 'online',
-      last_heartbeat: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      last_seen: new Date().toISOString(), // existing table uses 'last_seen'
+      install_token: installToken
     };
 
     // Upsert device (update if exists, insert if new)
     const { error: deviceError } = await supabase
       .from('devices')
       .upsert(deviceData, {
-        onConflict: 'device_id',
+        onConflict: 'id', // primary key is 'id' not 'device_id'
         ignoreDuplicates: false
       });
 
