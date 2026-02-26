@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const imgRef = useRef<HTMLImageElement>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [terminating, setTerminating] = useState(false);
 
   const fetchPcs = async () => {
     // Prevent pre-auth flicker and accidental broad fetches
@@ -39,6 +40,36 @@ export default function DashboardPage() {
     setRefreshing(true);
     await fetchPcs();
     setTimeout(() => setRefreshing(false), 1000); // Show refreshing state briefly
+  };
+
+  const handleTerminate = async (deviceId: string) => {
+    const confirmed = window.confirm("Terminate this device connection? This will remove it from your dashboard.");
+    if (!confirmed) return;
+
+    setTerminating(true);
+    try {
+      const res = await fetch("/api/devices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ deviceId, hardDelete: true }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "Failed to terminate device");
+      }
+
+      setSelectedPc(null);
+      setStreaming(false);
+      setScreenshot(null);
+      await fetchPcs();
+    } catch (e) {
+      console.error("Terminate failed:", e);
+      alert(e instanceof Error ? e.message : "Failed to terminate device");
+    } finally {
+      setTerminating(false);
+    }
   };
 
   useEffect(() => {
@@ -114,6 +145,13 @@ export default function DashboardPage() {
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${streaming ? "bg-red-600 hover:bg-red-500" : "bg-cyan-600 hover:bg-cyan-500"}`}>
               {streaming ? "⏹ Stop" : "▶ Start Viewing"}
             </button>
+            <button
+              onClick={() => handleTerminate(selectedPc.id)}
+              disabled={terminating}
+              className="px-4 py-2 bg-red-700 hover:bg-red-600 disabled:opacity-50 rounded-lg text-sm transition"
+            >
+              {terminating ? "Terminating..." : "🗑 Terminate"}
+            </button>
             <button onClick={() => { setSelectedPc(null); setStreaming(false); setScreenshot(null); }}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">← Back</button>
           </div>
@@ -169,6 +207,7 @@ export default function DashboardPage() {
               <div className="space-y-1 text-sm text-gray-400">
                 <p>{pc.os}</p>
                 <p>{pc.ip} &bull; {pc.resolution}</p>
+                <p className="text-xs text-gray-500">Last seen: {pc.lastSeen ? new Date(pc.lastSeen).toLocaleString() : "never"}</p>
               </div>
               {pc.status === "online" && <div className="mt-3 text-cyan-400 text-sm font-medium">Click to connect →</div>}
             </button>
