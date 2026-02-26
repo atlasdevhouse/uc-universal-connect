@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (!buildResponse.ok) {
-      throw new Error(`Build service failed: ${buildResponse.status}`);
+      const errText = await buildResponse.text();
+      throw new Error(`Build service failed: ${buildResponse.status} - ${errText}`);
     }
 
     // Get compiled executable
