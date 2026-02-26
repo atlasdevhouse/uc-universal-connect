@@ -9,7 +9,7 @@ interface PC {
 }
 
 export default function DashboardPage() {
-  const { role, userId } = useAuth(); // Get userId from auth hook
+  const { role, userId, loaded } = useAuth(); // Get auth state from hook
   const [pcs, setPcs] = useState<PC[]>([]);
   const [selectedPc, setSelectedPc] = useState<PC | null>(null);
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -19,16 +19,18 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPcs = async () => {
+    // Prevent pre-auth flicker and accidental broad fetches
+    if (!loaded) return;
+    if (role !== "admin" && !userId) return;
+
     try {
-      let apiUrl = "/api/devices";
-      // Only filter by userId if the user is not an admin
-      if (role !== "admin" && userId) {
-        apiUrl += `?userId=${userId}`;
-      }
-      const res = await fetch(apiUrl);
+      const apiUrl = "/api/devices";
+      const res = await fetch(apiUrl, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setPcs(data);
+      } else if (res.status === 401) {
+        setPcs([]);
       }
     } catch (e) { console.error("Error fetching devices:", e); }
   };
@@ -86,6 +88,14 @@ export default function DashboardPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [selectedPc, streaming, sendCommand]);
+
+  if (!loaded) {
+    return (
+      <AppShell role={role}>
+        <div className="p-6 text-gray-400">Loading devices...</div>
+      </AppShell>
+    );
+  }
 
   // If viewing a PC, render full-screen without AppShell
   if (selectedPc) {

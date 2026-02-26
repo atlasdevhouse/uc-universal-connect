@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 const TG_BOT_TOKEN = process.env.TG_BOT_TOKEN || "";
@@ -15,13 +15,27 @@ async function sendTelegram(chatId: string, text: string) {
   } catch { /* silent */ }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const userId = url.searchParams.get("userId");
-  
+  const requestedUserId = url.searchParams.get("userId");
+
+  // Trust server-side cookies, not client query params
+  const role = req.cookies.get("uc_role")?.value || "user";
+  const cookieUserId = req.cookies.get("uc_user_id")?.value || null;
+
   let query = supabase.from("devices").select("*").order("last_seen", { ascending: false });
-  if (userId) query = query.eq("user_id", userId);
-  
+
+  if (role === "admin") {
+    // Admin may optionally filter by user
+    if (requestedUserId) query = query.eq("user_id", requestedUserId);
+  } else {
+    // Non-admins are always restricted to their own devices
+    if (!cookieUserId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    query = query.eq("user_id", cookieUserId);
+  }
+
   const { data } = await query;
   const devices = (data || []).map(d => ({
     id: d.id, name: d.name, os: d.os, ip: d.ip, publicIp: d.public_ip,
